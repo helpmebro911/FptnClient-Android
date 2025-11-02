@@ -178,4 +178,6 @@ https://play.google.com/store/apps/details?id=org.fptn.vpn
     <string name="tile_addition_failed">Tile addition failed!</string>
     <string name="reset_selected_server_after_disconnect_label">Reset selected server after disconnect?</string>
 
+    <string name="auto_sni_label">Autoselect SNI</string>
+    <string name="sni_features_label">SNI settings</string>
 </resources>

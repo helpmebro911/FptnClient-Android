@@ -60,6 +60,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import kotlin.Triple;
 import lombok.Getter;
 
+@SuppressLint("VpnServicePolicy")
 public class CustomVpnService extends VpnService implements Handler.Callback {
     private static final String TAG = CustomVpnService.class.getSimpleName();
 

@@ -136,8 +136,14 @@ dependencies {
     annotationProcessor(libs.lombock)
 
     testImplementation(libs.junit)
+    testImplementation(libs.assertj.core)
 
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.assertj.core)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.rules)
+    androidTestImplementation(libs.androidx.runner)
+    androidTestImplementation(libs.androidx.testing)
 }
 java {
     toolchain {
