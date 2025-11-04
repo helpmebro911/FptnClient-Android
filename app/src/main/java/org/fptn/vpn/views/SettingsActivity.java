@@ -131,7 +131,7 @@ public class SettingsActivity extends AppCompatActivity {
         textView.setText(Html.fromHtml(getString(R.string.sponsors_usernames)));
 
         // Set on click listeners
-        View sniLayout = findViewById(R.id.sni_layout);
+        View sniLayout = findViewById(R.id.current_sni_layout);
         sniLayout.setOnClickListener(this::onEditSNIServer);
 
         View updateTokenLayout = findViewById(R.id.update_token_layout);

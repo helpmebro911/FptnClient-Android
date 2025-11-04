@@ -180,4 +180,8 @@ https://play.google.com/store/apps/details?id=org.fptn.vpn
 
     <string name="auto_sni_label">Autoselect SNI</string>
     <string name="sni_features_label">SNI settings</string>
+    <string name="load_sni_from_file">Load SNI from file</string>
+    <string name="delete_loaded_sni">Delete loaded SNI</string>
+    <string name="auto_select_sni">Start autoselect SNI</string>
+    <string name="loaded_sni_label">Loaded to local DB SNI:</string>
 </resources>
