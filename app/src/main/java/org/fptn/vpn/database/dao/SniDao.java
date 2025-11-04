@@ -21,4 +21,7 @@ public interface SniDao {
 
     @Query("DELETE FROM sni_table")
     void deleteAll();
+
+    @Query("SELECT COUNT(*) FROM sni_table")
+    int getSniCount();
 }

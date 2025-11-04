@@ -91,6 +91,24 @@ public class SniDaoTest {
         assertThat(observedSnis).isEmpty();
     }
 
+    @Test
+    public void getSniCount() {
+        SniDto sni1 = new SniDto("sni1");
+        SniDto sni2 = new SniDto("sni2");
+        List<SniDto> snis = Arrays.asList(sni1, sni2);
+
+        sniDao.insertAll(snis);
+
+        int count = sniDao.getSniCount();
+
+        assertThat(count).isEqualTo(2);
+
+        sniDao.deleteAll();
+
+        count = sniDao.getSniCount();
+        assertThat(count).isEqualTo(0);
+    }
+
     private <T> T getObservedValue(final LiveData<T> liveData) throws InterruptedException {
         final Object[] data = new Object[1];
         final CountDownLatch latch = new CountDownLatch(1);
