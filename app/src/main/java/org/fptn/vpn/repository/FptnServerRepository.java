@@ -4,52 +4,54 @@ import android.content.Context;
 
 import androidx.lifecycle.LiveData;
 
-import org.fptn.vpn.database.FptnDatabase;
-import org.fptn.vpn.database.model.FptnServerDto;
 import com.google.common.util.concurrent.ListenableFuture;
+
+import org.fptn.vpn.database.FptnDatabase;
+import org.fptn.vpn.database.dao.FptnServerDAO;
+import org.fptn.vpn.database.model.FptnServerDto;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class FptnServerRepository {
-    private final FptnDatabase database;
+    private final FptnServerDAO fptnServerDAO;
     private final ExecutorService executorService;
 
     public FptnServerRepository(Context context) {
-        this.database = FptnDatabase.getInstance(context.getApplicationContext());
+        this.fptnServerDAO = FptnDatabase.getInstance(context.getApplicationContext()).fptnServerDAO();
         this.executorService = Executors.newSingleThreadExecutor();
     }
 
     public ListenableFuture<List<FptnServerDto>> getAllServersListFuture() {
-        return database.fptnServerDAO().getAllServersListFuture();
+        return fptnServerDAO.getAllServersListFuture();
     }
 
-    public ListenableFuture<List<FptnServerDto>> getServersListFuture(boolean censured) {
-        return database.fptnServerDAO().getServersListFuture(censured);
+    public List<FptnServerDto> getServersListFuture(boolean censured) {
+        return fptnServerDAO.getServersListFuture(censured);
     }
 
     public LiveData<List<FptnServerDto>> getAllServersLiveData() {
-        return database.fptnServerDAO().getAllServersLiveData();
+        return fptnServerDAO.getAllServersLiveData();
     }
 
     public void deleteAllServers() {
-        executorService.execute(() -> database.fptnServerDAO().deleteAll());
+        executorService.execute(fptnServerDAO::deleteAll);
     }
 
     public void insertAll(List<FptnServerDto> serverDtoList) {
-        executorService.execute(() -> serverDtoList.forEach(fptnServerDto -> database.fptnServerDAO().insert(fptnServerDto)));
+        executorService.execute(() -> fptnServerDAO.insertAll(serverDtoList));
     }
 
-    public ListenableFuture<Integer>  resetSelected() {
-        return database.fptnServerDAO().resetSelected();
+    public void resetSelected() {
+        fptnServerDAO.resetSelected();
     }
 
-    public ListenableFuture<Integer> setIsSelected(int id) {
-        return database.fptnServerDAO().setIsSelected(id);
+    public void setIsSelected(int id) {
+        fptnServerDAO.setIsSelected(id);
     }
 
-    public ListenableFuture<FptnServerDto> getSelected() {
-        return database.fptnServerDAO().getSelected();
+    public FptnServerDto getSelected() {
+        return fptnServerDAO.getSelected();
     }
 }

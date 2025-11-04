@@ -6,6 +6,8 @@ import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 
+import com.google.common.util.concurrent.ListenableFuture;
+
 import org.fptn.vpn.database.model.SniDto;
 
 import java.util.List;
@@ -24,4 +26,7 @@ public interface SniDao {
 
     @Query("SELECT COUNT(*) FROM sni_table")
     int getSniCount();
+
+    @Query("SELECT COUNT(*) FROM sni_table")
+    LiveData<Integer> getSniCountLiveDate();
 }

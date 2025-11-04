@@ -197,54 +197,50 @@ public class CustomVpnService extends VpnService implements Handler.Callback {
                 return;
             }
 
-            try {
-                String sniHostname = SharedPrefUtils.getSniHostname(getApplicationContext());
-                if (intent == null) {
-                    /* restart after service destruction - all fields of intent is null */
-                    Log.w(TAG, "onStartCommand: restart after service was killed");
-                    FptnServerDto server = fptnServerRepository.getSelected().get();
-                    if (server != null) {
-                        connect(server, sniHostname);
-                    } else {
-                        /* selected server not selected - that should means that we were disconnected correct previously */
-                        Log.i(TAG, "connectToPreviouslySelectedServer: previously selected server is null. No need to reconnect");
-                        disconnect();
-                    }
-                } else if (ACTION_DISCONNECT.equals(intent.getAction())) {
-                    Log.i(TAG, "onStartCommand: disconnect!");
-                    /* if we need disconnect */
-                    if (SharedPrefUtils.getResetSelectedServerEnabled(this)) {
-                        fptnServerRepository.resetSelected();
-                    }
-                    // stop running threads
+            String sniHostname = SharedPrefUtils.getSniHostname(getApplicationContext());
+            if (intent == null) {
+                /* restart after service destruction - all fields of intent is null */
+                Log.w(TAG, "onStartCommand: restart after service was killed");
+                FptnServerDto server = fptnServerRepository.getSelected();
+                if (server != null) {
+                    connect(server, sniHostname);
+                } else {
+                    /* selected server not selected - that should means that we were disconnected correct previously */
+                    Log.i(TAG, "connectToPreviouslySelectedServer: previously selected server is null. No need to reconnect");
                     disconnect();
-                } else if (ACTION_CONNECT.equals(intent.getAction())) {
-                    setConnectionState(ConnectionState.CONNECTING, null);
-
-                    int serverId = intent.getIntExtra(SELECTED_SERVER, SELECTED_SERVER_ID_AUTO);
-                    if (serverId == SELECTED_SERVER_ID_AUTO) {
-                        try {
-                            List<FptnServerDto> fptnServerDtos = fptnServerRepository.getServersListFuture(false).get();
-                            FptnServerDto server = SpeedTestUtils.findFastestServer(fptnServerDtos, sniHostname);
-                            fptnServerRepository.setIsSelected(server.id);
-                            connect(server, sniHostname);
-                        } catch (PVNClientException e) {
-                            /* We don't need to connect if all servers are unreachable */
-                            Log.e(TAG, "onStartCommand: findFastestServer error! ", e);
-                            disconnect(e);
-                        }
-                    } else {
-                        Log.i(TAG, "onStartCommand: connectToServer with id: " + serverId);
-                        fptnServerRepository.setIsSelected(serverId).get();
-                        FptnServerDto server = fptnServerRepository.getSelected().get();
-                        connect(server, sniHostname);
-                    }
-
-                    // for infinite run
-                    resetServiceKeepAliveAlarm();
                 }
-            } catch (ExecutionException | InterruptedException e) {
-                disconnect(new PVNClientException(e.getMessage()));
+            } else if (ACTION_DISCONNECT.equals(intent.getAction())) {
+                Log.i(TAG, "onStartCommand: disconnect!");
+                /* if we need disconnect */
+                if (SharedPrefUtils.getResetSelectedServerEnabled(this)) {
+                    fptnServerRepository.resetSelected();
+                }
+                // stop running threads
+                disconnect();
+            } else if (ACTION_CONNECT.equals(intent.getAction())) {
+                setConnectionState(ConnectionState.CONNECTING, null);
+
+                int serverId = intent.getIntExtra(SELECTED_SERVER, SELECTED_SERVER_ID_AUTO);
+                if (serverId == SELECTED_SERVER_ID_AUTO) {
+                    try {
+                        List<FptnServerDto> fptnServerDtos = fptnServerRepository.getServersListFuture(false);
+                        FptnServerDto server = SpeedTestUtils.findFastestServer(fptnServerDtos, sniHostname);
+                        fptnServerRepository.setIsSelected(server.id);
+                        connect(server, sniHostname);
+                    } catch (PVNClientException e) {
+                        /* We don't need to connect if all servers are unreachable */
+                        Log.e(TAG, "onStartCommand: findFastestServer error! ", e);
+                        disconnect(e);
+                    }
+                } else {
+                    Log.i(TAG, "onStartCommand: connectToServer with id: " + serverId);
+                    fptnServerRepository.setIsSelected(serverId);
+                    FptnServerDto server = fptnServerRepository.getSelected();
+                    connect(server, sniHostname);
+                }
+
+                // for infinite run
+                resetServiceKeepAliveAlarm();
             }
         });
         // START_STICKY works not great, OS can restart service after 3 seconds or 3 minutes

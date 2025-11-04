@@ -220,4 +220,5 @@ public class FptnServerViewModel extends AndroidViewModel {
     public void unsubscribe() {
         // todo: check memory leaks and maybe remove observers
     }
+
 }

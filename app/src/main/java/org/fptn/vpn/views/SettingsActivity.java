@@ -29,6 +29,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
+import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -36,6 +37,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.textfield.TextInputEditText;
 
 import org.fptn.vpn.R;
+import org.fptn.vpn.repository.SniRepository;
 import org.fptn.vpn.services.tile.FptnTileService;
 import org.fptn.vpn.utils.PermissionsUtils;
 import org.fptn.vpn.utils.SharedPrefUtils;
@@ -61,12 +63,18 @@ public class SettingsActivity extends AppCompatActivity {
     private SwitchCompat permissionBackgroundDataTransferButton;
     private BottomNavigationView bottomNavigationView;
 
+    private SniRepository sniRepository;
+
+    private LiveData<Integer> SNICountMutableLiveData;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.settings_layout);
 
         SNIMutableLiveData = new MutableLiveData<>(getApplication().getString(R.string.default_sni));
+
+        sniRepository = new SniRepository(this);
 
         initializeVariable();
     }
@@ -111,10 +119,26 @@ public class SettingsActivity extends AppCompatActivity {
         tokenInfo.setText(Html.fromHtml(getString(R.string.settings_token_info_html), Html.FROM_HTML_MODE_LEGACY));
         tokenInfo.setMovementMethod(LinkMovementMethod.getInstance());
 
-        // SNI field
+        // SNI editField
         TextView sniTextField = findViewById(R.id.SNI_text_field);
         SNIMutableLiveData.observe(this, sniTextField::setText);
         SNIMutableLiveData.postValue(SharedPrefUtils.getSniHostname(this));
+
+        // SNI Auto
+        SNICountMutableLiveData = sniRepository.getSniCountLiveData();
+
+        TextView sniCountLabel = findViewById(R.id.loaded_sni_count_label);
+        SNICountMutableLiveData.observe(this,
+                count -> sniCountLabel.setText(String.valueOf(count)));
+
+        Button loadSniButton = findViewById(R.id.load_sni_button);
+        loadSniButton.setOnClickListener(view -> onLoadButtonClicked());
+
+        Button deleteSniButton = findViewById(R.id.delete_sni_button);
+        deleteSniButton.setOnClickListener(view -> onDeleteButtonClicked());
+
+        Button autoSelectSniButton = findViewById(R.id.auto_select_sni_button);
+        autoSelectSniButton.setOnClickListener(v -> onAutoSelectSniClicked());
 
         // Permission settings
         permissionShowNotificationButton = findViewById(R.id.permission_show_notification_button);
@@ -142,6 +166,18 @@ public class SettingsActivity extends AppCompatActivity {
 
         View logoutLayout = findViewById(R.id.logout_layout);
         logoutLayout.setOnClickListener(this::onLogout);
+    }
+
+    private void onAutoSelectSniClicked() {
+
+    }
+
+    private void onDeleteButtonClicked() {
+
+    }
+
+    private void onLoadButtonClicked() {
+
     }
 
     @Override

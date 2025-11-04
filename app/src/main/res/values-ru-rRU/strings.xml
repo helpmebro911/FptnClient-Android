@@ -153,4 +153,10 @@ https://play.google.com/store/apps/details?id=org.fptn.vpn
     <string name="reset_selected_server_after_disconnect_label">Сброс выбранного сервера после отключения?</string>
     <string name="auto_sni_label">Автоподбор SNI</string>
     <string name="sni_features_label">Настройки SNI</string>
+
+    <string name="load_sni_from_file">Загрузить SNI из файла</string>
+    <string name="delete_loaded_sni">Удалить загруженные SNI</string>
+    <string name="auto_select_sni">Запустить автоподбор SNI</string>
+    <string name="loaded_sni_label">Загруженные в локальную БД SNI:</string>
+
 </resources>
