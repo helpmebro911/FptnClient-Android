@@ -27,22 +27,22 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.snackbar.Snackbar;
+
 import org.fptn.vpn.R;
 import org.fptn.vpn.database.model.FptnServerDto;
 import org.fptn.vpn.enums.ConnectionState;
+import org.fptn.vpn.services.CustomVpnService;
 import org.fptn.vpn.services.CustomVpnServiceState;
 import org.fptn.vpn.services.tile.FptnTileService;
 import org.fptn.vpn.utils.CustomSpinner;
 import org.fptn.vpn.utils.PermissionsUtils;
 import org.fptn.vpn.utils.SharedPrefUtils;
-import org.fptn.vpn.views.adapter.FptnServerAdapter;
-import org.fptn.vpn.services.CustomVpnService;
 import org.fptn.vpn.viewmodel.FptnServerViewModel;
+import org.fptn.vpn.views.adapter.FptnServerAdapter;
 import org.fptn.vpn.vpnclient.exception.ErrorCode;
 import org.fptn.vpn.vpnclient.exception.PVNClientException;
-
-import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -64,6 +64,7 @@ public class HomeActivity extends AppCompatActivity {
 
     private TextView statusTextView;
     private TextView errorTextView;
+    private TextView sniTextView;
 
     private TextView connectedServerTextView;
 
@@ -129,6 +130,7 @@ public class HomeActivity extends AppCompatActivity {
         connectedServerTextView = findViewById(R.id.home_connected_server_name);
         statusTextView = findViewById(R.id.home_connection_status);
         errorTextView = findViewById(R.id.home_error_text_view);
+        sniTextView = findViewById(R.id.current_sni_label);
 
         /*View containers to hide*/
         homeSpeedFrame = findViewById(R.id.home_speed_frame);
@@ -207,6 +209,7 @@ public class HomeActivity extends AppCompatActivity {
 
         fptnViewModel.getErrorTextLiveData().observe(this, errorCodeText -> errorTextView.setText(errorCodeText));
         fptnViewModel.getStatusTextLiveData().observe(this, statusText -> statusTextView.setText(statusText));
+        fptnViewModel.getSniLiveData().observe(this, sni -> sniTextView.setText(sni));
 
         bottomNavigationView = findViewById(R.id.bottomNavBar);
         bottomNavigationView.setSelectedItemId(R.id.menuHome);

@@ -4,6 +4,8 @@ import android.content.Context;
 
 import androidx.lifecycle.LiveData;
 
+import com.google.common.util.concurrent.ListenableFuture;
+
 import org.fptn.vpn.database.FptnDatabase;
 import org.fptn.vpn.database.dao.SniDao;
 import org.fptn.vpn.database.model.SniDto;
@@ -19,6 +21,14 @@ public class SniRepository {
     public SniRepository(Context context) {
         this.sniDao = FptnDatabase.getInstance(context.getApplicationContext()).sniDao();
         this.executorService = Executors.newSingleThreadExecutor();
+    }
+
+    public ListenableFuture<List<SniDto>> getAllSniListenableFuture() {
+        return sniDao.getAllSniListenableFuture();
+    }
+
+    public List<String> getAllSniSync() {
+        return sniDao.getAllSniSync();
     }
 
     public LiveData<List<SniDto>> getAllSni() {

@@ -46,6 +46,7 @@ import org.fptn.vpn.database.model.FptnServerDto;
 import org.fptn.vpn.database.model.SniDto;
 import org.fptn.vpn.repository.FptnServerRepository;
 import org.fptn.vpn.repository.SniRepository;
+import org.fptn.vpn.services.CustomVpnService;
 import org.fptn.vpn.services.tile.FptnTileService;
 import org.fptn.vpn.utils.PermissionsUtils;
 import org.fptn.vpn.utils.SharedPrefUtils;
@@ -250,8 +251,7 @@ public class SettingsActivity extends AppCompatActivity {
             Log.d(TAG, "Starting SNI auto-select for server: " + selectedServer.getServerInfo());
             Toast.makeText(this, "Starting auto-select for " + selectedServer.getServerInfo(), Toast.LENGTH_SHORT).show();
 
-            //todo: Start process of searching best sni
-
+            CustomVpnService.startSNISearch(this, selectedServer);
             autoSelectDialog.dismiss();
         });
 

@@ -11,6 +11,10 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.ListenableFuture;
+
 import org.fptn.vpn.R;
 import org.fptn.vpn.database.model.FptnServerDto;
 import org.fptn.vpn.enums.ConnectionState;
@@ -18,11 +22,7 @@ import org.fptn.vpn.repository.FptnServerRepository;
 import org.fptn.vpn.services.CustomVpnService;
 import org.fptn.vpn.services.CustomVpnServiceState;
 import org.fptn.vpn.utils.CountryFlags;
-
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.util.concurrent.ListenableFuture;
-
+import org.fptn.vpn.utils.SharedPrefUtils;
 import org.fptn.vpn.utils.TimeUtils;
 import org.fptn.vpn.viewmodel.model.FptnToken;
 import org.fptn.vpn.viewmodel.model.FptnTokenServer;
@@ -72,6 +72,8 @@ public class FptnServerViewModel extends AndroidViewModel {
     private final LiveData<List<FptnServerDto>> serverDtoListLiveData;
     @Getter
     private final MutableLiveData<FptnServerDto> selectedServerLiveData = new MutableLiveData<>();
+    @Getter
+    private final MutableLiveData<String> sniLiveData = new MutableLiveData<>(getApplication().getString(R.string.default_sni));
 
     // observers
     private final Observer<CustomVpnServiceState> serviceStateObserver;
@@ -98,6 +100,8 @@ public class FptnServerViewModel extends AndroidViewModel {
                     }
                     case RECONNECTING ->
                             statusTextLiveData.postValue(getApplication().getString(R.string.connected));
+                    case SEARCH_SNI ->
+                            statusTextLiveData.postValue(getApplication().getString(R.string.auto_sni_label));
                 }
 
                 PVNClientException exception = customVpnServiceState.getException();
@@ -107,6 +111,8 @@ public class FptnServerViewModel extends AndroidViewModel {
             }
         };
         serviceStateMutableLiveData.observeForever(serviceStateObserver);
+
+        sniLiveData.postValue(SharedPrefUtils.getSniHostname(getApplication()));
     }
 
     private void handlePVNClientException(PVNClientException exception) {
@@ -223,6 +229,12 @@ public class FptnServerViewModel extends AndroidViewModel {
         });
 
         service.getServiceStateMutableLiveData().observeForever(serviceStateMutableLiveData::postValue);
+
+        service.getCurrentSNIHostMutableLiveData().observeForever(sni -> {
+            if (sni != null) {
+                sniLiveData.postValue(sni);
+            }
+        });
     }
 
     public void unsubscribe() {

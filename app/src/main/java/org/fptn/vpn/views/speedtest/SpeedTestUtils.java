@@ -50,6 +50,29 @@ public class SpeedTestUtils {
         throw new PVNClientException(ErrorCode.SERVER_LIST_NULL_OR_EMPTY);
     }
 
+    public static String findWorkingSni(FptnServerDto fptnServerDto, List<String> sniList) {
+        if (fptnServerDto != null && fptnServerDto != FptnServerDto.AUTO
+                && sniList != null && !sniList.isEmpty()) {
+            Log.d(TAG, "SpeedTestUtils.findWorkingSni() server: " + fptnServerDto.getServerInfo());
+
+            Collections.shuffle(sniList);
+            for (String sni : sniList) {
+                Log.d(TAG, "SpeedTestUtils.findWorkingSni() SNI: " + sni);
+
+                try {
+                    NativeSpeedTestResult speedTestResult = new NativeSpeedTestTask(fptnServerDto, sni).call();
+                    if (speedTestResult.getDurationsMillis() > 0) {
+                        Log.d(TAG, "SpeedTestUtils.findWorkingSni() found: " + sni);
+                        return sni;
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "SpeedTestUtils.findWorkingSni() sni:" + sni + " error: " + e.getMessage());
+                }
+            }
+        }
+        return null;
+    }
+
     private static List<FptnServerDto> selectRandomServers(List<FptnServerDto> servers) {
         if (servers.size() <= 1) {
             return servers;

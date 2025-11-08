@@ -27,8 +27,12 @@ public class FptnServerRepository {
         return fptnServerDAO.getAllServersListFuture();
     }
 
-    public List<FptnServerDto> getServersListFuture(boolean censured) {
-        return fptnServerDAO.getServersListFuture(censured);
+    public List<FptnServerDto> getServersList(boolean censured) {
+        return fptnServerDAO.getServersList(censured);
+    }
+
+    public FptnServerDto getById(int id) {
+        return fptnServerDAO.getById(id);
     }
 
     public LiveData<List<FptnServerDto>> getAllServersLiveData() {

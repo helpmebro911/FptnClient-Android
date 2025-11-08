@@ -37,23 +37,27 @@ import org.fptn.vpn.database.model.FptnServerDto;
 import org.fptn.vpn.enums.ConnectionState;
 import org.fptn.vpn.enums.HandlerMessageTypes;
 import org.fptn.vpn.repository.FptnServerRepository;
+import org.fptn.vpn.repository.SniRepository;
 import org.fptn.vpn.services.tile.FptnTileService;
 import org.fptn.vpn.utils.NetworkType;
 import org.fptn.vpn.utils.NetworkUtils;
 import org.fptn.vpn.utils.NotificationUtils;
 import org.fptn.vpn.utils.SharedPrefUtils;
 import org.fptn.vpn.views.HomeActivity;
+import org.fptn.vpn.views.speedtest.NativeSpeedTestResult;
+import org.fptn.vpn.views.speedtest.NativeSpeedTestTask;
 import org.fptn.vpn.views.speedtest.SpeedTestUtils;
 import org.fptn.vpn.vpnclient.exception.ErrorCode;
 import org.fptn.vpn.vpnclient.exception.PVNClientException;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -67,6 +71,9 @@ public class CustomVpnService extends VpnService implements Handler.Callback {
     public static final String ACTION_CONNECT = "CustomVpnService:CONNECT";
     public static final String ACTION_DISCONNECT = "CustomVpnService:DISCONNECT";
     public static final String ACTION_BIND = "CustomVpnService:BIND";
+
+    public static final String ACTION_START_SNI_SEARCH = "CustomVpnService:START_SNI_SEARCH";
+    public static final String ACTION_CANCEL_SNI_SEARCH = "CustomVpnService:CANCEL_SNI_SEARCH";
 
     public static final String FPTN_SERVICE_POWER_LOCK = "CustomVpnService::POWER_LOCK";
 
@@ -89,6 +96,7 @@ public class CustomVpnService extends VpnService implements Handler.Callback {
     private PendingIntent disconnectPendingIntent;
 
     private FptnServerRepository fptnServerRepository;
+    private SniRepository sniRepository;
 
     private boolean isNotificationAllowed = false;
 
@@ -99,6 +107,11 @@ public class CustomVpnService extends VpnService implements Handler.Callback {
     private final MutableLiveData<CustomVpnServiceState> serviceStateMutableLiveData = new MutableLiveData<>(CustomVpnServiceState.INITIAL);
     @Getter
     private final MutableLiveData<Triple<String, String, Long>> speedAndDurationMutableLiveData = new MutableLiveData<>();
+
+    @Getter
+    private final MutableLiveData<String> currentSNIHostMutableLiveData = new MutableLiveData<>("");
+
+    private final AtomicBoolean searchingSNI = new AtomicBoolean(false);
 
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private PowerManager.WakeLock wakeLock;
@@ -146,6 +159,20 @@ public class CustomVpnService extends VpnService implements Handler.Callback {
         context.startService(intent);
     }
 
+    public static void startSNISearch(Context context, FptnServerDto fptnServerDto) {
+        Intent intent = new Intent(context, CustomVpnService.class);
+        intent.setAction(ACTION_START_SNI_SEARCH);
+        intent.putExtra(SELECTED_SERVER, fptnServerDto.id);
+        // If started service not become foreground - will be exception ANR - after 30 seconds approx.
+        //context.startForegroundService(intent);
+        context.startService(intent);
+    }
+
+    public static void cancelSNISearch(Context context) {
+        Intent intent = new Intent(context, CustomVpnService.class);
+        intent.setAction(ACTION_CANCEL_SNI_SEARCH);
+    }
+
     @Override
     public void onCreate() {
         Log.i(TAG, "CustomVpnService.onCreate() Thread.Id: " + Thread.currentThread().getId());
@@ -163,6 +190,8 @@ public class CustomVpnService extends VpnService implements Handler.Callback {
                         .setAction(CustomVpnService.ACTION_DISCONNECT),
                 PendingIntent.FLAG_IMMUTABLE);
         fptnServerRepository = new FptnServerRepository(getApplicationContext());
+        sniRepository = new SniRepository(getApplicationContext());
+
 
         /* check if notification allowed */
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -198,6 +227,7 @@ public class CustomVpnService extends VpnService implements Handler.Callback {
             }
 
             String sniHostname = SharedPrefUtils.getSniHostname(getApplicationContext());
+            currentSNIHostMutableLiveData.postValue(sniHostname);
             if (intent == null) {
                 /* restart after service destruction - all fields of intent is null */
                 Log.w(TAG, "onStartCommand: restart after service was killed");
@@ -223,7 +253,7 @@ public class CustomVpnService extends VpnService implements Handler.Callback {
                 int serverId = intent.getIntExtra(SELECTED_SERVER, SELECTED_SERVER_ID_AUTO);
                 if (serverId == SELECTED_SERVER_ID_AUTO) {
                     try {
-                        List<FptnServerDto> fptnServerDtos = fptnServerRepository.getServersListFuture(false);
+                        List<FptnServerDto> fptnServerDtos = fptnServerRepository.getServersList(false);
                         FptnServerDto server = SpeedTestUtils.findFastestServer(fptnServerDtos, sniHostname);
                         fptnServerRepository.setIsSelected(server.id);
                         connect(server, sniHostname);
@@ -241,11 +271,52 @@ public class CustomVpnService extends VpnService implements Handler.Callback {
 
                 // for infinite run
                 resetServiceKeepAliveAlarm();
+            } else if (ACTION_START_SNI_SEARCH.equals(intent.getAction())) {
+                setConnectionState(ConnectionState.SEARCH_SNI, null);
+
+                int serverId = intent.getIntExtra(SELECTED_SERVER, -1);
+                if (serverId > 0) {
+                    findWorkingSni(serverId);
+                }
+            } else if (ACTION_CANCEL_SNI_SEARCH.equals(intent.getAction())) {
+                searchingSNI.set(false);
             }
         });
         // START_STICKY works not great, OS can restart service after 3 seconds or 3 minutes
         // START_NOT_STICKY - no need to restart
         return START_NOT_STICKY;
+    }
+
+
+    public void findWorkingSni(int serverId) {
+        searchingSNI.set(true);
+        new Thread(() -> {
+            FptnServerDto fptnServerDto = fptnServerRepository.getById(serverId);
+            List<String> sniList = sniRepository.getAllSniSync();
+            Collections.shuffle(sniList);
+
+            for (String sni : sniList) {
+                if (!searchingSNI.get()) {
+                    return;
+                }
+
+                Log.d(TAG, "SpeedTestUtils.findWorkingSni() SNI: " + sni);
+                try {
+                    NativeSpeedTestResult speedTestResult = new NativeSpeedTestTask(fptnServerDto, sni).call();
+                    if (speedTestResult.getDurationsMillis() > 0) {
+                        Log.d(TAG, "SpeedTestUtils.findWorkingSni() found: " + sni);
+                        currentSNIHostMutableLiveData.postValue(sni);
+                        SharedPrefUtils.saveSniHostname(this, sni);
+                        return;
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "SpeedTestUtils.findWorkingSni() sni:" + sni + " error: " + e.getMessage());
+                }
+            }
+
+            setConnectionState(ConnectionState.DISCONNECTED, null);
+
+        }).start();
     }
 
 

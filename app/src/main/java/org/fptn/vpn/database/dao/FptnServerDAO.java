@@ -27,10 +27,13 @@ public interface FptnServerDAO {
     ListenableFuture<List<FptnServerDto>> getAllServersListFuture();
 
     @Query("SELECT * FROM server_table WHERE censured = :censured")
-    List<FptnServerDto> getServersListFuture(boolean censured);
+    List<FptnServerDto> getServersList(boolean censured);
 
     @Query("UPDATE server_table SET isSelected = CASE WHEN id = :id THEN 1 ELSE 0 END")
     void setIsSelected(int id);
+
+    @Query("SELECT * FROM server_table WHERE id = :id")
+    FptnServerDto getById(int id);
 
     @Query("SELECT * FROM server_table WHERE isSelected = 1")
     FptnServerDto getSelected();

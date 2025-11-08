@@ -15,6 +15,12 @@ import java.util.List;
 @Dao
 public interface SniDao {
 
+    @Query("SELECT sni FROM sni_table")
+    List<String> getAllSniSync();
+
+    @Query("SELECT * FROM sni_table")
+    ListenableFuture<List<SniDto>> getAllSniListenableFuture();
+
     @Query("SELECT * FROM sni_table")
     LiveData<List<SniDto>> getAllSni();
 
