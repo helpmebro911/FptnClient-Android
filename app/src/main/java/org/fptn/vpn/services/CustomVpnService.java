@@ -307,6 +307,8 @@ public class CustomVpnService extends VpnService implements Handler.Callback {
                         Log.d(TAG, "SpeedTestUtils.findWorkingSni() found: " + sni);
                         currentSNIHostMutableLiveData.postValue(sni);
                         SharedPrefUtils.saveSniHostname(this, sni);
+                        searchingSNI.set(false);
+                        setConnectionState(ConnectionState.DISCONNECTED, null);
                         return;
                     }
                 } catch (Exception e) {
@@ -314,6 +316,7 @@ public class CustomVpnService extends VpnService implements Handler.Callback {
                 }
             }
 
+            searchingSNI.set(false);
             setConnectionState(ConnectionState.DISCONNECTED, null);
 
         }).start();
