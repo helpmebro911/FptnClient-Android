@@ -184,4 +184,7 @@ https://play.google.com/store/apps/details?id=org.fptn.vpn
     <string name="delete_loaded_sni">Delete loaded SNI</string>
     <string name="auto_select_sni">Start autoselect SNI</string>
     <string name="loaded_sni_label">Loaded to local DB SNI:</string>
+
+    <string name="select_server_for_autoselect">Select Server for SNI Autoselect</string>
+    <string name="start_button_label">Start</string>
 </resources>

@@ -1,6 +1,7 @@
 package org.fptn.vpn.views;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.StatusBarManager;
 import android.content.ComponentName;
@@ -16,37 +17,46 @@ import android.provider.Settings;
 import android.text.Html;
 import android.text.method.LinkMovementMethod;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.SeekBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.textfield.TextInputEditText;
 
 import org.fptn.vpn.R;
+import org.fptn.vpn.database.model.FptnServerDto;
+import org.fptn.vpn.database.model.SniDto;
+import org.fptn.vpn.repository.FptnServerRepository;
 import org.fptn.vpn.repository.SniRepository;
 import org.fptn.vpn.services.tile.FptnTileService;
 import org.fptn.vpn.utils.PermissionsUtils;
 import org.fptn.vpn.utils.SharedPrefUtils;
-import org.fptn.vpn.viewmodel.FptnServerViewModel;
 import org.fptn.vpn.views.adapter.FptnServerAdapter;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
-
-import lombok.Getter;
 
 public class SettingsActivity extends AppCompatActivity {
     private final String TAG = this.getClass().getSimpleName();
@@ -55,9 +65,6 @@ public class SettingsActivity extends AppCompatActivity {
 
     private MutableLiveData<String> SNIMutableLiveData;
 
-    @Getter
-    private FptnServerViewModel fptnViewModel;
-
     private SwitchCompat permissionShowNotificationButton;
     private SwitchCompat permissionBatteryOptimizationButton;
     private SwitchCompat permissionBackgroundDataTransferButton;
@@ -65,7 +72,13 @@ public class SettingsActivity extends AppCompatActivity {
 
     private SniRepository sniRepository;
 
+    private FptnServerRepository fptnServerRepository;
+
     private LiveData<Integer> SNICountMutableLiveData;
+
+    private ActivityResultLauncher<Intent> filePickerLauncher;
+
+    private AlertDialog autoSelectDialog;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -75,6 +88,24 @@ public class SettingsActivity extends AppCompatActivity {
         SNIMutableLiveData = new MutableLiveData<>(getApplication().getString(R.string.default_sni));
 
         sniRepository = new SniRepository(this);
+        fptnServerRepository = new FptnServerRepository(this);
+
+        // Register the activity result launcher
+        // This must be done in onCreate or as a class member initializer.
+        filePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        Intent data = result.getData();
+                        if (data != null && data.getData() != null) {
+                            Uri uri = data.getData();
+                            Log.d(TAG, "File selected: " + uri.getPath());
+                            readFileContent(uri);
+                        }
+                    } else {
+                        Log.w(TAG, "File selection cancelled.");
+                    }
+                });
 
         initializeVariable();
     }
@@ -85,8 +116,7 @@ public class SettingsActivity extends AppCompatActivity {
         bottomNavigationView.setSelectedItemId(R.id.menuSettings);
         bottomNavigationView.setOnItemSelectedListener(new CustomBottomNavigationListener(this, bottomNavigationView, R.id.menuSettings));
 
-        fptnViewModel = new ViewModelProvider(this).get(FptnServerViewModel.class);
-        fptnViewModel.getServerDtoListLiveData().observe(this, fptnServerDtos -> {
+        fptnServerRepository.getAllServersLiveData().observe(this, fptnServerDtos -> {
             if (fptnServerDtos != null && !fptnServerDtos.isEmpty()) {
                 serverListView.setAdapter(new FptnServerAdapter(fptnServerDtos, R.layout.settings_server_list_item)); // NEED TO CHANGE THE ITEM LAYOUT
                 setListViewHeightBasedOnChildren(serverListView);
@@ -169,15 +199,118 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void onAutoSelectSniClicked() {
+        // Fetch the list of servers and then show the dialog
+        fptnServerRepository.getAllServersLiveData().observe(this, servers -> {
+            if (servers != null && !servers.isEmpty()) {
+                showAutoSelectDialog(servers);
+            } else {
+                Toast.makeText(this, "No servers available to select.", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
 
+    private void showAutoSelectDialog(List<FptnServerDto> servers) {
+        // Prevent creating multiple dialogs
+        if (autoSelectDialog != null && autoSelectDialog.isShowing()) {
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        // Inflate the custom layout
+        LayoutInflater inflater = this.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_autoselect_sni, null);
+        builder.setView(dialogView);
+
+        // --- Setup Spinner ---
+        Spinner serverSpinner = dialogView.findViewById(R.id.dialog_server_spinner);
+
+        List<String> serverNames = new ArrayList<>();
+        for (FptnServerDto server : servers) {
+            serverNames.add(server.getServerInfo());
+        }
+
+        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, serverNames);
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        serverSpinner.setAdapter(spinnerAdapter);
+        // --- End Spinner Setup ---
+
+        // --- Setup Buttons ---
+        Button buttonCancel = dialogView.findViewById(R.id.dialog_button_cancel);
+        Button buttonStart = dialogView.findViewById(R.id.dialog_button_start);
+
+        // Create the dialog before setting click listeners to allow for dismissing it
+        autoSelectDialog = builder.create();
+
+        buttonCancel.setOnClickListener(v -> {
+            Log.d(TAG, "Auto-select dialog cancelled.");
+            autoSelectDialog.dismiss();
+        });
+
+        buttonStart.setOnClickListener(v -> {
+            // Get the originally selected server object
+            int selectedPosition = serverSpinner.getSelectedItemPosition();
+            FptnServerDto selectedServer = servers.get(selectedPosition);
+
+            Log.d(TAG, "Starting SNI auto-select for server: " + selectedServer.getServerInfo());
+            Toast.makeText(this, "Starting auto-select for " + selectedServer.getServerInfo(), Toast.LENGTH_SHORT).show();
+
+            // TODO: Add your logic here to start the SNI auto-selection process
+
+            autoSelectDialog.dismiss();
+        });
+
+        autoSelectDialog.show();
     }
 
     private void onDeleteButtonClicked() {
-
+        sniRepository.deleteAll();
+        Toast.makeText(this, "All loaded SNI have been deleted.", Toast.LENGTH_SHORT).show();
     }
 
     private void onLoadButtonClicked() {
+        // Create an intent to open the file picker
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        // We are looking for any kind of file, but you could restrict it,
+        // for example, to "text/plain" for text files.
+        intent.setType("text/plain");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
 
+        try {
+            // Launch the intent using the ActivityResultLauncher
+            filePickerLauncher.launch(Intent.createChooser(intent, "Select a SNI file"));
+        } catch (android.content.ActivityNotFoundException ex) {
+            // Potentially handle the case where the device has no file manager
+            Toast.makeText(this, "Please install a File Manager.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void readFileContent(Uri uri) {
+        List<SniDto> sniList = new ArrayList<>();
+        try (InputStream inputStream = getContentResolver().openInputStream(uri);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // Trim whitespace and ignore empty or commented lines
+                String trimmedLine = line.trim();
+                if (!trimmedLine.isEmpty() && !trimmedLine.startsWith("#")) {
+                    sniList.add(new SniDto(trimmedLine));
+                }
+            }
+
+            if (!sniList.isEmpty()) {
+                sniRepository.insertAll(sniList);
+                Log.d(TAG, "Successfully inserted " + sniList.size() + " SNIs into the database.");
+                Toast.makeText(this, "Loaded " + sniList.size() + " SNI from file.", Toast.LENGTH_LONG).show();
+            } else {
+                Log.d(TAG, "No valid SNIs found in the selected file.");
+                Toast.makeText(this, "File is empty or contains no valid SNI entries.", Toast.LENGTH_SHORT).show();
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error reading SNI file", e);
+            Toast.makeText(this, "Error: Could not read the file.", Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
@@ -260,7 +393,7 @@ public class SettingsActivity extends AppCompatActivity {
                 .setMessage(R.string.dialog_logout_message)
                 .setPositiveButton(R.string.yes, (dialog, which) -> {
                     dialog.dismiss();
-                    fptnViewModel.deleteAll();
+                    fptnServerRepository.deleteAllServers();
                     // goto Login activity
                     Intent intent = new Intent(SettingsActivity.this, SplashActivity.class);
                     startActivity(intent);
