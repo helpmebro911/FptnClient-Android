@@ -27,6 +27,7 @@ import org.fptn.vpn.utils.TimeUtils;
 import org.fptn.vpn.viewmodel.model.FptnToken;
 import org.fptn.vpn.viewmodel.model.FptnTokenServer;
 import org.fptn.vpn.viewmodel.model.FptnTokenValidationUtils;
+import org.fptn.vpn.viewmodel.model.SniAutoSelectState;
 import org.fptn.vpn.vpnclient.exception.ErrorCode;
 import org.fptn.vpn.vpnclient.exception.PVNClientException;
 
@@ -51,6 +52,11 @@ public class FptnServerViewModel extends AndroidViewModel {
     @Getter
     private final MutableLiveData<CustomVpnServiceState> serviceStateMutableLiveData = new MutableLiveData<>(CustomVpnServiceState.INITIAL);
 
+    @Getter
+    private final MutableLiveData<SniAutoSelectState> sniAutoSelectStateLiveData = new MutableLiveData<>(
+            new SniAutoSelectState(false, 0, "")
+    );
+
     /*Only for show on views*/
     @Getter
     private final MutableLiveData<String> timerTextLiveData = new MutableLiveData<>(getApplication().getString(R.string.zero_time));
@@ -64,6 +70,8 @@ public class FptnServerViewModel extends AndroidViewModel {
     private final MutableLiveData<String> statusTextLiveData = new MutableLiveData<>(getApplication().getString(R.string.disconnected));
     @Getter
     private final LiveData<List<FptnServerDto>> serverDtoListLiveData;
+    @Getter
+    private final MutableLiveData<FptnServerDto> selectedServerLiveData = new MutableLiveData<>();
 
     // observers
     private final Observer<CustomVpnServiceState> serviceStateObserver;

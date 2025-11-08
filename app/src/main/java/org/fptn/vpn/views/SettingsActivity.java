@@ -74,8 +74,6 @@ public class SettingsActivity extends AppCompatActivity {
 
     private FptnServerRepository fptnServerRepository;
 
-    private LiveData<Integer> SNICountMutableLiveData;
-
     private ActivityResultLauncher<Intent> filePickerLauncher;
 
     private AlertDialog autoSelectDialog;
@@ -155,10 +153,8 @@ public class SettingsActivity extends AppCompatActivity {
         SNIMutableLiveData.postValue(SharedPrefUtils.getSniHostname(this));
 
         // SNI Auto
-        SNICountMutableLiveData = sniRepository.getSniCountLiveData();
-
         TextView sniCountLabel = findViewById(R.id.loaded_sni_count_label);
-        SNICountMutableLiveData.observe(this,
+        sniRepository.getSniCountLiveData().observe(this,
                 count -> sniCountLabel.setText(String.valueOf(count)));
 
         Button loadSniButton = findViewById(R.id.load_sni_button);
@@ -254,7 +250,7 @@ public class SettingsActivity extends AppCompatActivity {
             Log.d(TAG, "Starting SNI auto-select for server: " + selectedServer.getServerInfo());
             Toast.makeText(this, "Starting auto-select for " + selectedServer.getServerInfo(), Toast.LENGTH_SHORT).show();
 
-            // TODO: Add your logic here to start the SNI auto-selection process
+            //todo: Start process of searching best sni
 
             autoSelectDialog.dismiss();
         });
